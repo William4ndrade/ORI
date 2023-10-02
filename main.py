@@ -138,6 +138,11 @@ class QueryInterpreter:
             if query[x] in special_chars:
                 antes = x - 1
                 depois = x + 1
+                if query[x] == '&':
+                    result.append(self.AND(query[antes], query[depois]))
+                elif query[x] == '|':
+                    result.append(self.OR(query[antes], query[depois]))
+        print(result)
 
 
 
@@ -165,4 +170,4 @@ class QueryInterpreter:
 
 
 
-QueryInterpreter().find('!samba & amor !love | juca')
+QueryInterpreter().find('samba & amor & nao')

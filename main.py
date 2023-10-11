@@ -44,6 +44,18 @@ def ReadBase():
         raise Exception("Preencha o path da base de pesquisa")
 
 
+def CreateRespostaTxt(respostas):
+    to_file = ''
+    to_file += str(len(respostas)) + '\n'
+    for r in respostas:
+        to_file += r
+        to_file += '\n'
+    f = open('./resposta.txt', 'w')
+    f.write(to_file)
+    f.close()
+
+
+
 class FilesHandler:
     def __init__(self):
         self.BasePath = 'Resources/base_samba/base_samba'
@@ -54,7 +66,7 @@ class FilesHandler:
         self.Radicals = self.GetAllRadicals()
         self.InvertedIndexToken = self.GetInvertedIndexFromToken()
         self.SetRadicalIndex()
-       # self.GenerateIndexFile()
+        self.GenerateIndexFile()
 
     def ReadBase(self):
         if len(sys.argv) > 1:
@@ -119,10 +131,10 @@ class FilesHandler:
                 if file.RadicalsIndex[r] > 0:
                     to_file += f'{file.id},{file.RadicalsIndex[r]} '
             to_file += '\n'
-        f = open('./Resources/indice.txt', 'w')
+        f = open('./indice.txt', 'w')
         f.write(to_file)
         f.close()
-        self.PrintFiles()
+
 
 
 class QueryInterpreter:
@@ -130,44 +142,68 @@ class QueryInterpreter:
     def __init__(self):
         self.InvertedIndexToken = FilesHandler().InvertedIndexToken
 
-    def find(self, q):
-        query = q.split(' ')
-        result = []
-        special_chars = ['|', '&']
-        for x in range(len(query)):
-            if query[x] in special_chars:
-                antes = x - 1
-                depois = x + 1
-                if query[x] == '&':
-                    result.append(self.AND(query[antes], query[depois]))
-                elif query[x] == '|':
-                    result.append(self.OR(query[antes], query[depois]))
-        print(result)
 
+    def putSetInSet(self, set1, set2):
+        [set1.add(t) for t in set2]
+
+
+    def find(self, q):
+        query = q.split(" ")
+        result = None
+
+        if query[0][0] == '!':
+            result = self.NOT_op(self.InvertedIndexToken.get(query[0].replace('!', "")))
+        else:
+            result = self.InvertedIndexToken.get(query[0])
+
+
+        for x in range(len(query)):
+            if query[x] == '&':
+                 current_value = None
+                 if query[x+1][0] not in '!':
+                     current_value = (self.InvertedIndexToken.get(query[x+1]))
+                 else:
+                     current_value = (self.NOT_op(self.InvertedIndexToken.get(query[x+1].replace("!", ""))))
+                 result = self.AND(result, current_value)
+
+            elif query[x] == '|':
+                current_value = set()
+                if query[x + 1][0] not in '!':
+                    current_value = (self.InvertedIndexToken.get(query[x+1]))
+                else:
+                    current_value = (self.NOT_op(self.InvertedIndexToken.get(query[x+1].replace("!", ""))))
+                result = self.OR(result, current_value)
+        return result
+
+    def NOT_op(self, a):
+        values = set([t.pop() for t in self.InvertedIndexToken.values() if len(t) > 0])
+        return values.difference(a)
 
 
     def AND(self, a, b):
-        current_a = self.InvertedIndexToken.get(a)
-        current_b = self.InvertedIndexToken.get(b)
-        return current_a.intersection(current_b)
+        return a.intersection(b)
+
 
     def OR(self, a, b):
-        current_a = self.InvertedIndexToken.get(a)
-        current_b = self.InvertedIndexToken.get(b)
-        return current_a.union(current_b)
-
-    def NOT(self, a):
-        values = set([t.pop() for t in self.InvertedIndexToken.values()])
-        current_a = self.InvertedIndexToken.get(a.replace('!', ''))
-        return values.difference(current_a)
+        return a.union(b)
 
 
 
 
 
+if __name__ == '__main__':
+    FilesHandler()
+    print(sys.argv)
+    if len(sys.argv) >= 3:
+        f = open(sys.argv[2], 'r')
+        query = f.read()
+        f.close()
+        r = QueryInterpreter().find(query)
+        CreateRespostaTxt(r)
+
+    else:
+        raise Exception("Preencha todos os argumentos")
 
 
 
 
-
-QueryInterpreter().find('samba & amor & nao')
